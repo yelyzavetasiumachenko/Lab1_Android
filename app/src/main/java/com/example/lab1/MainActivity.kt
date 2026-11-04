@@ -25,13 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-//import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import com.example.lab1.ui.theme.Lab1Theme
-//import com.example.lab1.GradesViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,10 +69,10 @@ fun Lab1App() {
                     ScheduleScreen(modifier = Modifier.padding(innerPadding))
                 }
                 AppDestinations.GRADES -> {
-                GradesScreen(modifier = Modifier.padding(innerPadding))
+                    GradesScreen(modifier = Modifier.padding(innerPadding))
+                }
             }
         }
-}
     }
 }
 
@@ -103,7 +99,7 @@ fun ScheduleScreen(modifier: Modifier = Modifier) {
             text = "Курс: Основи мови програмування JavaScript",
             style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 24.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center // Центруємо текст, якщо він довгий
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
 
         Text(
