@@ -5,60 +5,173 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-// ПІДЕКРАН 1
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lab1.viewmodel.ScheduleViewModel
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.example.lab1.ui.components.*
+import com.example.lab1.model.*
+
 @Composable
 fun ScheduleListSubScreen(
     modifier: Modifier = Modifier,
-    onNavigateToDetails: (String, Int) -> Unit
+    onNavigateToDetails: (String, Int) -> Unit,
+    viewModel: ScheduleViewModel = viewModel()
 ) {
-    val topics = listOf("Введення у JavaScript", "Об'єкт. Масиви. Об'єкт Array", "Опрацювання подій", "Browser Object Model", "Document Object Model")
-    var currentIndex by rememberSaveable { mutableIntStateOf(0) }
+    val listData by viewModel.listData.collectAsState()
 
     Column(
-        modifier = modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Курс: Основи мови програмування JavaScript",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 24.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-
-        Text(
-            text = "Лекція ${currentIndex + 1}: ${topics[currentIndex]}",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            ),
         ) {
-            Button(onClick = { currentIndex-- }, enabled = currentIndex > 0) {
-                Text("Попередня")
-            }
-
-            Button(onClick = { currentIndex++ }, enabled = currentIndex < topics.size - 1) {
-                Text("Наступна")
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "💻 Онлайн-курс",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Основи JavaScript",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = { onNavigateToDetails(topics[currentIndex], currentIndex + 1) },
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Детальніше про лекцію")
+            items(
+                items = listData,
+                key = { item ->
+                    "${item.id}_${
+                        when (item) {
+                            is Tutor -> item.name
+                            is Lecture -> item.title
+                            is HorizontalTutorsList -> item.hashCode()
+                            is HeaderItem -> item.title
+                        }
+                    }"
+                }
+            ) { item ->
+                when (item) {
+                    is HorizontalTutorsList -> HorizontalItem(horizontalList = item)
+
+                    is HeaderItem -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 26.dp,
+                                    bottom = 0.dp
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = item.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    is Tutor -> TutorCard(
+                        tutor = item,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+
+                    is Lecture -> LectureCard(
+                        lecture = item,
+                        onClick = { onNavigateToDetails(item.title, item.id) }
+                    )
+                }
+            }
         }
     }
 }
+
+
+// ПІДЕКРАН 1
+//@Composable
+//fun ScheduleListSubScreen(
+//    modifier: Modifier = Modifier,
+//    onNavigateToDetails: (String, Int) -> Unit
+//) {
+//    val topics = listOf("Введення у JavaScript", "Об'єкт. Масиви. Об'єкт Array", "Опрацювання подій", "Browser Object Model", "Document Object Model")
+//    var currentIndex by rememberSaveable { mutableIntStateOf(0) }
+//
+//    Column(
+//        modifier = modifier.fillMaxSize().padding(16.dp),
+//        verticalArrangement = Arrangement.Center,
+//        horizontalAlignment = Alignment.CenterHorizontally
+//    ) {
+//        Text(
+//            text = "Курс: Основи мови програмування JavaScript",
+//            style = MaterialTheme.typography.titleLarge,
+//            modifier = Modifier.padding(bottom = 24.dp),
+//            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+//        )
+//
+//        Text(
+//            text = "Лекція ${currentIndex + 1}: ${topics[currentIndex]}",
+//            style = MaterialTheme.typography.bodyLarge,
+//            modifier = Modifier.padding(bottom = 32.dp)
+//        )
+//
+//        Row(
+//            horizontalArrangement = Arrangement.spacedBy(16.dp)
+//        ) {
+//            Button(onClick = { currentIndex-- }, enabled = currentIndex > 0) {
+//                Text("Попередня")
+//            }
+//
+//            Button(onClick = { currentIndex++ }, enabled = currentIndex < topics.size - 1) {
+//                Text("Наступна")
+//            }
+//        }
+//
+//        Spacer(modifier = Modifier.height(32.dp))
+//
+//        Button(
+//            onClick = { onNavigateToDetails(topics[currentIndex], currentIndex + 1) },
+//            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+//        ) {
+//            Text("Детальніше про лекцію")
+//        }
+//    }
+//}
 
 // ПІДЕКРАН 2
 @OptIn(ExperimentalMaterial3Api::class)

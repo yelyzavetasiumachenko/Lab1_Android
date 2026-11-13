@@ -1,4 +1,4 @@
-package com.example.lab1
+package com.example.lab1.viewmodel
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf

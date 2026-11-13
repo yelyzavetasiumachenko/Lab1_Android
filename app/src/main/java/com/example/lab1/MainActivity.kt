@@ -4,32 +4,37 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.lab1.ui.navigation.ScheduleNavDisplay
 import com.example.lab1.ui.theme.Lab1Theme
+import com.example.lab1.viewmodel.GradesViewModel
+
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+
+import com.example.lab1.ui.navigation.*
+import com.example.lab1.ui.screens.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,34 +60,77 @@ enum class AppDestinations(
 @PreviewScreenSizes
 @Composable
 fun Lab1App() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.SCHEDULE) }
+    val navController = rememberNavController()
+
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
-            AppDestinations.entries.forEach {
+            AppDestinations.entries.forEach { appDest ->
+
+                val isSelected = when (appDest) {
+                    AppDestinations.SCHEDULE -> currentDestination?.hierarchy?.any { it.hasRoute(ScheduleTabRoute::class) } == true
+                    AppDestinations.GRADES -> currentDestination?.hierarchy?.any { it.hasRoute(GradesTabRoute::class) } == true
+                }
+
                 item(
-                    icon = {
-                        Icon(
-                            painterResource(it.icon),
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    icon = { Icon(painterResource(appDest.icon), contentDescription = appDest.label) },
+                    label = { Text(appDest.label) },
+                    selected = isSelected,
+                    onClick = {
+                        val route = if (appDest == AppDestinations.SCHEDULE) ScheduleTabRoute else GradesTabRoute
+
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
         }
-    )  {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            when (currentDestination) {
-                AppDestinations.SCHEDULE -> {
-//                    ScheduleScreen(modifier = Modifier.padding(innerPadding))
-                    ScheduleNavDisplay(modifier = Modifier.padding(innerPadding))
+    ) {
+        NavHost(
+            navController = navController,
+            startDestination = ScheduleTabRoute,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            navigation<ScheduleTabRoute>(startDestination = ScheduleScreenRoute.List) {
+                composable<ScheduleScreenRoute.List> {
+                    ScheduleListSubScreen(
+                        onNavigateToDetails = { topic, number ->
+                            navController.navigate(ScheduleScreenRoute.Details(topic, number))
+                        }
+                    )
                 }
-                AppDestinations.GRADES -> {
-                    GradesScreen(modifier = Modifier.padding(innerPadding))
+
+                composable<ScheduleScreenRoute.Details> { backStackEntry ->
+                    val details = backStackEntry.toRoute<ScheduleScreenRoute.Details>()
+                    LectureDetailsSubScreen(
+                        topicName = details.topicName,
+                        lectureNumber = details.lectureNumber,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToResources = { topic ->
+                            navController.navigate(ScheduleScreenRoute.ExtraResources(topic))
+                        }
+                    )
                 }
+
+                composable<ScheduleScreenRoute.ExtraResources> { backStackEntry ->
+                    val resources = backStackEntry.toRoute<ScheduleScreenRoute.ExtraResources>()
+                    LectureResourcesSubScreen(
+                        topicName = resources.topicName,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable<GradesTabRoute> {
+                GradesScreen()
             }
         }
     }
