@@ -56,7 +56,7 @@ fun HorizontalItem(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = tutor.name.take(1),
+                                    text = "${tutor.firstName.take(1)}${tutor.lastName.take(1)}",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -67,7 +67,7 @@ fun HorizontalItem(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = tutor.name,
+                            text = tutor.fullName,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                             maxLines = 1,

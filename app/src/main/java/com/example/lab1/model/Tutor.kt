@@ -1,7 +1,11 @@
 package com.example.lab1.model
 
 data class Tutor(
-    val name: String,
+    val firstName: String,
+    val lastName: String,
     val role: String,
     override val id: Int
-) : MyListable
+) : MyListable {
+    val fullName: String
+        get() = "$firstName $lastName"
+}

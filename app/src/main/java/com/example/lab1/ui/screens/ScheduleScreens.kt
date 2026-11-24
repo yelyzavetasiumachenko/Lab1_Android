@@ -1,13 +1,15 @@
 package com.example.lab1.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,6 +17,7 @@ import com.example.lab1.viewmodel.ScheduleViewModel
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.style.TextAlign
 import com.example.lab1.ui.components.*
 import com.example.lab1.model.*
 
@@ -22,9 +25,22 @@ import com.example.lab1.model.*
 fun ScheduleListSubScreen(
     modifier: Modifier = Modifier,
     onNavigateToDetails: (String, Int) -> Unit,
-    viewModel: ScheduleViewModel = viewModel()
+    viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.Factory)
 ) {
     val listData by viewModel.listData.collectAsState()
+    val tutors by viewModel.tutors.collectAsState()
+    val lecturesOnly = remember(listData) { listData.filterIsInstance<Lecture>() }
+
+    // Стани для діалогів додавання / редагування
+    var showTutorDialog by remember { mutableStateOf(false) }
+    var editingTutor by remember { mutableStateOf<Tutor?>(null) }
+
+    var showLectureDialog by remember { mutableStateOf(false) }
+    var editingLecture by remember { mutableStateOf<Lecture?>(null) }
+
+    // Стани для підтвердження видалення
+    var tutorToDelete by remember { mutableStateOf<Tutor?>(null) }
+    var lectureToDelete by remember { mutableStateOf<Lecture?>(null) }
 
     Column(
         modifier = modifier
@@ -32,16 +48,13 @@ fun ScheduleListSubScreen(
             .windowInsetsPadding(WindowInsets.statusBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Верхня шапка курсу + кнопки додавання
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-            border = androidx.compose.foundation.BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            ),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -49,17 +62,43 @@ fun ScheduleListSubScreen(
             ) {
                 Text(
                     text = "💻 Онлайн-курс",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Основи JavaScript",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(onClick = {
+                        editingTutor = null
+                        showTutorDialog = true
+                    }) {
+                        Text("+ Викладач")
+                    }
+                    Button(onClick = {
+                        editingLecture = null
+                        showLectureDialog = true
+                    }) {
+                        Text("+ Лекція")
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = { viewModel.restoreDefaultData() }) {
+                        Text("🔄 Відновити базові")
+                    }
+                    TextButton(onClick = { viewModel.clearAllData() }) {
+                        Text("🗑️ Очистити БД", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
 
@@ -75,10 +114,10 @@ fun ScheduleListSubScreen(
                 key = { item ->
                     "${item.id}_${
                         when (item) {
-                            is Tutor -> item.name
-                            is Lecture -> item.title
-                            is HorizontalTutorsList -> item.hashCode()
-                            is HeaderItem -> item.title
+                            is Tutor -> "tutor_${item.fullName}"
+                            is Lecture -> "lecture_${item.title}"
+                            is HorizontalTutorsList -> "horizontal_${item.tutors.size}"
+                            is HeaderItem -> "header_${item.title}"
                         }
                     }"
                 }
@@ -86,92 +125,314 @@ fun ScheduleListSubScreen(
                 when (item) {
                     is HorizontalTutorsList -> HorizontalItem(horizontalList = item)
 
-                    is HeaderItem -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 26.dp,
-                                    bottom = 0.dp
-                                ),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = item.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    is HeaderItem -> Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, end = 4.dp, top = 16.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     is Tutor -> TutorCard(
                         tutor = item,
+                        onEdit = {
+                            editingTutor = item
+                            showTutorDialog = true
+                        },
+                        onDelete = { tutorToDelete = item },
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
 
-                    is Lecture -> LectureCard(
-                        lecture = item,
-                        onClick = { onNavigateToDetails(item.title, item.id) }
-                    )
+//                    is Lecture -> LectureCard(
+//                        lecture = item,
+//                        onClick = { onNavigateToDetails(item.title, item.id) },
+//                        onEdit = {
+//                            editingLecture = item
+//                            showLectureDialog = true
+//                        },
+//                        onDelete = { lectureToDelete = item }
+//                    )
+                    is Lecture -> {
+                        val lectureNumber = lecturesOnly.indexOf(item) + 1
+                        LectureCard(
+                            lecture = item,
+                            lectureNumber = lectureNumber,
+                            onClick = { onNavigateToDetails(item.title, item.id) },
+                            onEdit = {
+                                editingLecture = item
+                                showLectureDialog = true
+                            },
+                            onDelete = { lectureToDelete = item }
+                        )
+                    }
                 }
             }
         }
     }
+
+    // Діалог додавання / редагування викладача
+    if (showTutorDialog) {
+        TutorFormDialog(
+            initialTutor = editingTutor,
+            onDismiss = { showTutorDialog = false },
+            onConfirm = { firstName, lastName, role ->
+                val current = editingTutor
+                if (current == null) {
+                    viewModel.addTutor(firstName, lastName, role)
+                } else {
+                    viewModel.updateTutor(
+                        current.copy(
+                            firstName = firstName,
+                            lastName = lastName,
+                            role = role
+                        )
+                    )
+                }
+                showTutorDialog = false
+            }
+        )
+    }
+
+    // Діалог додавання / редагування лекції
+    if (showLectureDialog) {
+        LectureFormDialog(
+            initialLecture = editingLecture,
+            tutors = tutors,
+            onDismiss = { showLectureDialog = false },
+            onConfirm = { title, duration, selectedTutor ->
+                val current = editingLecture
+                if (current == null) {
+                    viewModel.addLecture(title, duration, selectedTutor?.id)
+                } else {
+                    viewModel.updateLecture(
+                        current.copy(
+                            title = title,
+                            durationMin = duration,
+                            tutor = selectedTutor
+                        )
+                    )
+                }
+                showLectureDialog = false
+            }
+        )
+    }
+
+    // Діалог підтвердження видалення викладача
+    tutorToDelete?.let { tutor ->
+        AlertDialog(
+            onDismissRequest = { tutorToDelete = null },
+            title = { Text("Видалити викладача?") },
+            text = {
+                Text(
+                    "Ви дійсно хочете видалити викладача ${tutor.fullName}? " +
+                            "Усі пов'язані з ним лекції також будуть видалені."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTutor(tutor)
+                        tutorToDelete = null
+                    }
+                ) {
+                    Text("Видалити", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { tutorToDelete = null }) {
+                    Text("Скасувати")
+                }
+            }
+        )
+    }
+
+    // Діалог підтвердження видалення лекції
+    lectureToDelete?.let { lecture ->
+        AlertDialog(
+            onDismissRequest = { lectureToDelete = null },
+            title = { Text("Видалити лекцію?") },
+            text = {
+                Text("Ви дійсно хочете видалити лекцію «${lecture.title}»?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteLecture(lecture)
+                        lectureToDelete = null
+                    }
+                ) {
+                    Text("Видалити", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { lectureToDelete = null }) {
+                    Text("Скасувати")
+                }
+            }
+        )
+    }
 }
 
+@Composable
+private fun TutorFormDialog(
+    initialTutor: Tutor?,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit
+) {
+    var lastName by remember { mutableStateOf(initialTutor?.lastName ?: "") }
+    var firstName by remember { mutableStateOf(initialTutor?.firstName ?: "") }
+    var role by remember { mutableStateOf(initialTutor?.role ?: "") }
 
-// ПІДЕКРАН 1
-//@Composable
-//fun ScheduleListSubScreen(
-//    modifier: Modifier = Modifier,
-//    onNavigateToDetails: (String, Int) -> Unit
-//) {
-//    val topics = listOf("Введення у JavaScript", "Об'єкт. Масиви. Об'єкт Array", "Опрацювання подій", "Browser Object Model", "Document Object Model")
-//    var currentIndex by rememberSaveable { mutableIntStateOf(0) }
-//
-//    Column(
-//        modifier = modifier.fillMaxSize().padding(16.dp),
-//        verticalArrangement = Arrangement.Center,
-//        horizontalAlignment = Alignment.CenterHorizontally
-//    ) {
-//        Text(
-//            text = "Курс: Основи мови програмування JavaScript",
-//            style = MaterialTheme.typography.titleLarge,
-//            modifier = Modifier.padding(bottom = 24.dp),
-//            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-//        )
-//
-//        Text(
-//            text = "Лекція ${currentIndex + 1}: ${topics[currentIndex]}",
-//            style = MaterialTheme.typography.bodyLarge,
-//            modifier = Modifier.padding(bottom = 32.dp)
-//        )
-//
-//        Row(
-//            horizontalArrangement = Arrangement.spacedBy(16.dp)
-//        ) {
-//            Button(onClick = { currentIndex-- }, enabled = currentIndex > 0) {
-//                Text("Попередня")
-//            }
-//
-//            Button(onClick = { currentIndex++ }, enabled = currentIndex < topics.size - 1) {
-//                Text("Наступна")
-//            }
-//        }
-//
-//        Spacer(modifier = Modifier.height(32.dp))
-//
-//        Button(
-//            onClick = { onNavigateToDetails(topics[currentIndex], currentIndex + 1) },
-//            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-//        ) {
-//            Text("Детальніше про лекцію")
-//        }
-//    }
-//}
+    // Перевірка, чи заповнені всі поля
+    val isFormValid = lastName.isNotBlank() && firstName.isNotBlank() && role.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialTutor == null) "Новий викладач" else "Редагувати викладача") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = { lastName = it },
+                    label = { Text("Прізвище") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = firstName,
+                    onValueChange = { firstName = it },
+                    label = { Text("Ім'я") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = role,
+                    onValueChange = { role = it },
+                    label = { Text("Посада / роль") },
+                    singleLine = true
+                )
+
+                // Підказка, якщо не всі поля заповнені
+                if (!isFormValid) {
+                    Text(
+                        text = "⚠️ Заповніть усі поля, щоб зберегти викладача",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = isFormValid,
+                onClick = { onConfirm(firstName, lastName, role) }
+            ) {
+                Text("Зберегти")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Скасувати") }
+        }
+    )
+}
+
+@Composable
+private fun LectureFormDialog(
+    initialLecture: Lecture?,
+    tutors: List<Tutor>,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Int, Tutor?) -> Unit
+) {
+    var title by remember { mutableStateOf(initialLecture?.title ?: "") }
+    var durationText by remember { mutableStateOf(initialLecture?.durationMin?.toString() ?: "45") }
+    var selectedTutor by remember {
+        mutableStateOf(initialLecture?.tutor ?: tutors.firstOrNull())
+    }
+
+    val duration = durationText.toIntOrNull()
+    // Перевірка, чи заповнені назва, коректна тривалість та обраний викладач (якщо вони є)
+    val isFormValid = title.isNotBlank() &&
+            duration != null &&
+            duration > 0 &&
+            (tutors.isEmpty() || selectedTutor != null)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialLecture == null) "Нова лекція" else "Редагувати лекцію") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Назва лекції") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = durationText,
+                    onValueChange = { durationText = it.filter { ch -> ch.isDigit() } },
+                    label = { Text("Тривалість (хв)") },
+                    singleLine = true
+                )
+                if (tutors.isNotEmpty()) {
+                    Text(
+                        text = "Викладач:",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    tutors.forEach { tutor ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedTutor = tutor }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedTutor?.id == tutor.id,
+                                onClick = { selectedTutor = tutor }
+                            )
+                            Text(
+                                text = tutor.fullName,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                // Підказка, якщо не всі поля заповнені
+                if (!isFormValid) {
+                    Text(
+                        text = "⚠️ Заповніть усі поля (назву та тривалість > 0), щоб зберегти",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = isFormValid,
+                onClick = {
+                    if (duration != null) {
+                        onConfirm(title, duration, selectedTutor)
+                    }
+                }
+            ) {
+                Text("Зберегти")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Скасувати") }
+        }
+    )
+}
+
 
 // ПІДЕКРАН 2
 @OptIn(ExperimentalMaterial3Api::class)
