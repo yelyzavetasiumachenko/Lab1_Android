@@ -71,4 +71,7 @@ dependencies {
 
     implementation(libs.androidx.room3.runtime)
     ksp(libs.androidx.room3.compiler)
+    implementation(libs.retrofit2.retrofit)
+    implementation(libs.retrofit2.retrofit.converter.gson)
+    implementation(libs.google.gson)
 }

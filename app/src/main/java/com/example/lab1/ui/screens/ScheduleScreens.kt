@@ -42,6 +42,12 @@ fun ScheduleListSubScreen(
     var tutorToDelete by remember { mutableStateOf<Tutor?>(null) }
     var lectureToDelete by remember { mutableStateOf<Lecture?>(null) }
 
+    val isLoading by viewModel.isLoading.collectAsState()
+    val apiError by viewModel.apiError.collectAsState()
+
+    var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+    var showApiLoadConfirmDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -92,12 +98,39 @@ fun ScheduleListSubScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(onClick = { viewModel.restoreDefaultData() }) {
+                    TextButton(onClick = { showRestoreConfirmDialog = true }) {
                         Text("🔄 Відновити базові")
                     }
                     TextButton(onClick = { viewModel.clearAllData() }) {
                         Text("🗑️ Очистити БД", color = MaterialTheme.colorScheme.error)
                     }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showApiLoadConfirmDialog = true },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Завантаження...")
+                    } else {
+                        Text("⬇️ Завантажити з API")
+                    }
+                }
+
+                apiError?.let { errorText ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = errorText,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -149,21 +182,12 @@ fun ScheduleListSubScreen(
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
 
-//                    is Lecture -> LectureCard(
-//                        lecture = item,
-//                        onClick = { onNavigateToDetails(item.title, item.id) },
-//                        onEdit = {
-//                            editingLecture = item
-//                            showLectureDialog = true
-//                        },
-//                        onDelete = { lectureToDelete = item }
-//                    )
                     is Lecture -> {
                         val lectureNumber = lecturesOnly.indexOf(item) + 1
                         LectureCard(
                             lecture = item,
                             lectureNumber = lectureNumber,
-                            onClick = { onNavigateToDetails(item.title, item.id) },
+                            onClick = { onNavigateToDetails(item.title, lectureNumber) },
                             onEdit = {
                                 editingLecture = item
                                 showLectureDialog = true
@@ -272,6 +296,56 @@ fun ScheduleListSubScreen(
             },
             dismissButton = {
                 TextButton(onClick = { lectureToDelete = null }) {
+                    Text("Скасувати")
+                }
+            }
+        )
+    }
+
+    if (showRestoreConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirmDialog = false },
+            title = { Text("Відновити базові дані?") },
+            text = {
+                Text("Усі поточні записи в базі даних будуть очищені та замінені початковим набором даних. Продовжити?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreConfirmDialog = false
+                        viewModel.restoreDefaultData()
+                    }
+                ) {
+                    Text("Очистити та відновити")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirmDialog = false }) {
+                    Text("Скасувати")
+                }
+            }
+        )
+    }
+
+    if (showApiLoadConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiLoadConfirmDialog = false },
+            title = { Text("Завантажити дані з API?") },
+            text = {
+                Text("Перед завантаженням нових записів із сервера поточна база даних буде очищена. Виконати цю дію?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showApiLoadConfirmDialog = false
+                        viewModel.loadDataFromApi()
+                    }
+                ) {
+                    Text("Очистити та завантажити")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiLoadConfirmDialog = false }) {
                     Text("Скасувати")
                 }
             }

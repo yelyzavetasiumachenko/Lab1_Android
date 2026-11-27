@@ -7,8 +7,13 @@ import com.example.lab1.model.*
 import com.example.lab1.util.toEntity
 import com.example.lab1.util.toDomain
 
+import com.example.lab1.api.AppRetrofitApi
+import com.example.lab1.dto.LectureDto
+import com.example.lab1.dto.TutorDto
+
 class AppRepositoryImpl(
-    private val appDao: AppDao
+    private val appDao: AppDao,
+    private val appRetrofitApi: AppRetrofitApi
 ) : AppRepository {
 
     // Прапорець гарантує, що початкове заповнення спрацює лише 1 раз при запуску
@@ -124,61 +129,22 @@ class AppRepositoryImpl(
         clearAllData()
         insertDefaultRecords()
     }
+
+    override suspend fun addTutorsToDb(tutors: List<Tutor>): List<Long> {
+        return appDao.insertAllTutors(tutors.map { it.toEntity() })
+    }
+
+    override suspend fun addLecturesToDb(lectures: List<Lecture>) {
+        appDao.insertAllLectures(lectures.map { it.toEntity() })
+    }
+
+    override suspend fun fetchTutorsFromApi(): List<TutorDto> {
+        val response = appRetrofitApi.getTutors()
+        return if (response.isSuccessful) response.body() ?: emptyList() else emptyList()
+    }
+
+    override suspend fun fetchLecturesFromApi(): List<LectureDto> {
+        val response = appRetrofitApi.getLectures()
+        return if (response.isSuccessful) response.body() ?: emptyList() else emptyList()
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//package com.example.lab1.repository
-//
-//import com.example.lab1.model.*
-//
-//class AppRepositoryImpl : AppRepository {
-//    private val tutorsList: List<Tutor> = listOf(
-//        Tutor("Іван Петренко", "Senior JS Developer", id = 1),
-//        Tutor("Марія Коваленко", "Frontend Tech Lead", id = 2),
-//        Tutor("Олексій Сидорчук", "Web Designer", id = 3)
-//    )
-//
-//    private val courseData: List<MyListable> = listOf(
-//
-//
-//        HeaderItem(title = "\uD83D\uDCDA Матеріали курсу:", id = 101),
-//
-////        Tutor("Іван Петренко", "автор курсу", id = 1),
-//        tutorsList[0].copy(role = "автор курсу"),
-//        Lecture("Введення у JavaScript", 45, tutorsList[0], id = 1),
-//        Lecture("Document Object Model", 55, tutorsList[0], id = 5),
-//
-////        Tutor("Марія Коваленко", "куратор", id = 2),
-//        tutorsList[1].copy(role = "куратор"),
-//        Lecture("Об'єкт. Масиви", 60, tutorsList[1], id = 2),
-//        Lecture("Опрацювання подій", 40, tutorsList[1], id = 3),
-//        HorizontalTutorsList(tutorsList, id = 100),
-//
-////        Tutor("Олексій Сидорчук", "ментор", id = 3),
-//        tutorsList[2].copy(role = "ментор"),
-//        Lecture("Browser Object Model", 50, tutorsList[2], id = 4)
-//
-//    )
-//
-//    override fun getAllData(): List<MyListable> {
-//        return courseData
-//    }
-//}

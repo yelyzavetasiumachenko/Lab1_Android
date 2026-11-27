@@ -3,6 +3,8 @@ package com.example.lab1.repository
 import com.example.lab1.model.Lecture
 import com.example.lab1.model.MyListable
 import com.example.lab1.model.Tutor
+import com.example.lab1.dto.LectureDto
+import com.example.lab1.dto.TutorDto
 
 interface AppRepository {
     suspend fun getAllData(): List<MyListable>
@@ -21,4 +23,9 @@ interface AppRepository {
     // Додаткові методи
     suspend fun clearAllData()
     suspend fun restoreDefaultData()
+
+    suspend fun addTutorsToDb(tutors: List<Tutor>): List<Long>
+    suspend fun addLecturesToDb(lectures: List<Lecture>)
+    suspend fun fetchTutorsFromApi(): List<TutorDto>
+    suspend fun fetchLecturesFromApi(): List<LectureDto>
 }

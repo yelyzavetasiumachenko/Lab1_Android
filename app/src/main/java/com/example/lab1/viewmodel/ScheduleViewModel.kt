@@ -14,9 +14,62 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import com.example.lab1.util.toDomain
+
 class ScheduleViewModel(
     private val repository: AppRepository
 ) : ViewModel() {
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _apiError = MutableStateFlow<String?>(null)
+    val apiError: StateFlow<String?> = _apiError.asStateFlow()
+
+    fun loadDataFromApi(
+        tutorsLimit: Int = 4,
+        lecturesPerTutor: Int = 2
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _apiError.value = null
+            try {
+                val remoteTutors = repository.fetchTutorsFromApi().take(tutorsLimit)
+                val remoteLectures = repository.fetchLecturesFromApi()
+
+                if (remoteTutors.isEmpty() || remoteLectures.isEmpty()) {
+                    _apiError.value = "Зовнішній API повернув порожню відповідь"
+                } else {
+                    // Очищаємо попередній вміст БД перед збереженням даних із API
+                    repository.clearAllData()
+
+                    val domainTutors = remoteTutors.map { it.toDomain() }
+                    val insertedLocalIds = repository.addTutorsToDb(domainTutors)
+
+                    val remoteToLocalTutorMap = remoteTutors
+                        .zip(insertedLocalIds)
+                        .associate { (dto, localId) ->
+                            dto.id to dto.toDomain().copy(id = localId.toInt())
+                        }
+
+                    val lecturesToSave = remoteTutors.flatMap { tutorDto ->
+                        val localTutor = remoteToLocalTutorMap.getValue(tutorDto.id)
+                        remoteLectures
+                            .filter { it.tutorRemoteId == tutorDto.id }
+                            .take(lecturesPerTutor)
+                            .map { lectureDto -> lectureDto.toDomain(tutor = localTutor) }
+                    }
+
+                    repository.addLecturesToDb(lecturesToSave)
+                    loadData()
+                }
+            } catch (e: Exception) {
+                _apiError.value = "Помилка мережі: ${e.localizedMessage ?: "перевірте інтернет"}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     private val _listData = MutableStateFlow<List<MyListable>>(emptyList())
     val listData: StateFlow<List<MyListable>> = _listData.asStateFlow()
@@ -86,6 +139,7 @@ class ScheduleViewModel(
 
     fun restoreDefaultData() {
         viewModelScope.launch {
+            repository.clearAllData()
             repository.restoreDefaultData()
             loadData()
         }
